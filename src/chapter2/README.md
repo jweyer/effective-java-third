@@ -5,28 +5,44 @@
 
 Pros: 
 1. One advantage of static factory methods is that, unlike constructors, they have names.
-2. A second advantage of static factory methods is that, unlike constructors, they are not required to create a new object each time they’re invoked. 
-3. A third advantage of static factory methods is that, unlike constructors, they can return an object of any subtype of their return type. 
+    1. Avoids anti-pattern of using multiple construtors with different parameter order.
+    2. This is replaced with multiple static factory methods that better describe the purpose.
+2. A second advantage of static factory methods is that, unlike constructors, they are not required to create a new object each time they’re invoked.
+    1. An example here is Boolean.valueOf(boolean b) which returns a reference to a constant in memory instead of creating a new object.
+3. A third advantage of static factory methods is that, unlike constructors, they can return an object of any subtype of their return type.
+    1. Interfaces now allow static (and default) methods and become a great place for static factory methods.
+    2. This alleviates the need for 'non-instantiable companion classes', e.g. java.util.Collections, requiring another class.
 4. A fourth advantage of static factories is that the class of the returned object can vary from call to call as a function of the input parameters. 
 5. A fifth advantage of static factories is that the class of the returned object need not exist when the class containing the method is written. 
+    1. This provides the basis for Service Provider Frameworks (such as JDBC).  DriverManager, Driver and Connection.
 Cons:
 1. The main limitation of providing only static factory methods is that classes without public or protected constructors can NOT be sub-classed. 
 2. A second shortcoming of static factory methods is that they are hard for programmers to find. 
-    1. Possible solution: document tool such as Javadoc tool. 
-    2. Common naming conventions. 
-        1. from - a type-conversion method that takes a single parameter and returns a corresponding instance of this type. For example: Date d = Date.from(instant);
-        2. of - An aggregation method that takes multiple parameters and returns an instance of this type that incorporates them. For example: Set<Rank> faceCards = EnumSet.of(JACK, QUEEN, KING);
-        3. valueOf - A more verbose alternative to from and of For example: BigInteger prime = BigInteger.valueOf(Integer.MAX_VALUE);
+    1. Possible solution: Improve documentation tool such as Javadoc tool. 
+    2. Possible solution:  Enhance existing documentation to call attention to static factory methods.
+    3. Possible oslution:  Use common naming conventions for static factory methods. 
+        1. from - a type-conversion method that takes a single parameter and returns a corresponding instance of this type. For example: 
+        ``` Date d = Date.from(instant); ```
+        2. of - An aggregation method that takes multiple parameters and returns an instance of this type that incorporates them. For example: 
+        ``` Set<Rank> faceCards = EnumSet.of(JACK, QUEEN, KING); ```
+        3. valueOf - A more verbose alternative to from and of For example: 
+        ``` BigInteger prime = BigInteger.valueOf(Integer.MAX_VALUE); ```
         4. instance or newInstance - Like instance or getInstance,
         5. getType
         6. newType
-        7. type = A concise alternative to getType and newType, for example: List<Complaint> litany = Collections.list(legacyLitany);
+        7. type = A concise alternative to getType and newType, for example: 
+        ``` List<Complaint> litany = Collections.list(legacyLitany); ```
 
-In short, static factory methods and public //TODO finish all
+In short, static factory methods and public constructors both have their uses.  Often static factories are preferable, so avoid the reflex to provide public constructors without first considering static factories.
 
 ## ITEM 2: CONSIDER A BUILDER WHEN FACED WITH MANY CONSTRUCTOR PARAMETERS
 
- In short, the telescoping constructor pattern works, but it is hard to write client code when there are many parameters, and harder still to read it. 
+Both constructors and static factories don't scale well with many optional parmaters.
+The 'telescoping constructor' pattern works, but it is hard to write client code when there are many parameters, and harder still to read it. 
+The 'Java Beans' pattern improves, but suffers from shortcomings such as ...
+    1. Leaving an object in an inconsistent, partial state partway through it's construction.
+    2. Precludes the possibility of making a class immutable.
+    3. Requires added developer effort to ensure thread safety.
 
 // Builder Pattern
 ```
@@ -75,18 +91,19 @@ public final class NutritionFact {
 ```
 The NutritionFact class is an immutable class, and all parameter default values are in one places.
 The builder's setter methods return the builder itself so that invocations can be chained. As below,
-```$xslt
+```
 NutritionFact sprite = new NutritionFact.Builder(240, 8)
     .calories(100).far(20).sodium(30).build();
 ```
 This client code is easy to write and, more importantly, easy to read. 
 The Builder pattern simulates named optional parameters as found in Python and Scala.
+To detect invalid parameters as soon as possible, check parameter validity in the builder's constructor or methods.
 
 The Builder pattern is well suited to class hierarchies. 
 Use a parallel hierarchy of builders, each nested in the corresponding class. 
 Abstract classes have abstract builders; concrete classes have concrete builders. 
 For example, consider an abstract class at the root of a hierarchy representing various kinds of pizza:
-```$xslt
+```$java
 // Builder pattern for class hierarchies
 public abstract class Pizza {
 
@@ -99,34 +116,28 @@ public abstract class Pizza {
       EnumSet<Topping> toppings = EnumSet.noneOf(Topping.class);
 
       public T addTopping(Topping topping) {
-
          toppings.add(Objects.requireNonNull(topping));
-
          return self();
-
       }
 
       abstract Pizza build();
 
       // Subclasses must override this method to return "this"
-
       protected abstract T self();
 
    }
 
    Pizza(Builder<?> builder) {
-
       toppings = builder.toppings.clone(); // See Item  50
-
    }
 }
 ```
 Note that Pizza.Builder is a generic type with a recursive type parameter (Item 30). 
 This, along with the abstract self method, allows method chaining to work properly in subclasses, without the need for casts. 
-This workaround for the fact that Java lacks a self type is known as the simulated self-type idiom.
+This workaround for the fact that Java lacks a self type is known as the 'simulated self-type' idiom.
 
 Here are two concrete subclasses of Pizza, one of which represents a standard New-York-style pizza, the other a calzone. The former has a required size parameter, while the latter lets you specify whether sauce should be inside or out:
-```$xslt
+```$java
 public class NyPizza extends Pizza {
     public enum Size { SMALL, MEDIUM, LARGE }
     private final Size size;
@@ -136,9 +147,7 @@ public class NyPizza extends Pizza {
         private final Size size;
 
         public Builder(Size size) {
-
             this.size = Objects.requireNonNull(size);
-
         }
 
         @Override public NyPizza build() {
@@ -180,10 +189,10 @@ public class Calzone extends Pizza {
     }
 }
 ```
-Note that the build method in each subclass’s builder is declared to return the correct subclass: the build method of NyPizza.Builder returns NyPizza, while the one in Calzone.Builder returns Calzone. This technique, wherein a subclass method is declared to return a subtype of the return type declared in the super-class, is known as covariant return typing. It allows clients to use these builders without the need for casting.
+Note that the build method in each subclass’s builder is declared to return the correct subclass: the build method of NyPizza.Builder returns NyPizza, while the one in Calzone.Builder returns Calzone. This technique, wherein a subclass method is declared to return a subtype of the return type declared in the super-class, is known as 'covariant return typing'. It allows clients to use these builders without the need for casting.
 
 The client code for these “hierarchical builders” is essentially identical to the code for the simple NutritionFacts builder. The example client code shown next assumes static imports on enum constants for brevity:
-```$xslt
+```$java
 NyPizza pizza = new NyPizza.Builder(SMALL)
         .addTopping(SAUSAGE).addTopping(ONION).build();
 
@@ -194,49 +203,57 @@ A minor advantage of builders over constructors is that builders can have multip
 
 The Builder pattern is quite flexible. A single builder can be used repeatedly to build multiple objects. The parameters of the builder can be tweaked between invocations of the build method to vary the objects that are created. A builder can fill in some fields automatically upon object creation, such as a serial number that increases each time an object is created.
 
-The Builder pattern has disadvantages as well. In order to create an object, you must first create its builder. While the cost of creating this builder is unlikely to be noticeable in practice, it could be a problem in performance-critical situations. Also, the Builder pattern is more verbose than the telescoping constructor pattern, so it should be used only if there are enough parameters to make it worthwhile, say four or more. But keep in mind that you may want to add more parameters in the future. But if you start out with constructors or static factories and switch to a builder when the class evolves to the point where the number of parameters gets out of hand, the obsolete constructors or static factories will stick out like a sore thumb. Therefore, it’s often better to start with a builder in the first place.
+The Builder pattern has disadvantages as well ... 
+1. In order to create an object, you must first create its builder. While the cost of creating this builder is unlikely to be noticeable in practice, it could be a problem in performance-critical situations.
+2. Also, the Builder pattern is more verbose than the telescoping constructor pattern, so it should be used only if there are enough parameters to make it worthwhile, say four or more. But keep in mind that you may want to add more parameters in the future. 
+3. But if you start out with constructors or static factories and switch to a builder when the class evolves to the point where the number of parameters gets out of hand, the obsolete constructors or static factories will stick out like a sore thumb. Therefore, it’s often better to start with a builder in the first place.
 
 In summary, the Builder pattern is a good choice when designing classes whose constructors or static factories would have more than a handful of parameters, especially if many of the parameters are optional or of identical type. Client code is much easier to read and write with builders than with telescoping constructors, and builders are much safer than JavaBeans.
 
 ## ITEM 3: ENFORCE THE SINGLETON PROPERTY WITH A PRIVATE CONSTRUCTOR OR AN ENUM TYPE
+A singleton is simply a class that can be referenced many times but instantiated only once.
+There are three commmon ways to implement singletons, both using private constructors.
+Note: Consult the [Initialization on Demand Idiom](https://en.wikipedia.org/wiki/Initialization-on-demand_holder_idiom) for a cleaner implementation.
+1. The first method uses a public field directly accessible by the client.
+    1. The main advantage of the public field approach is that the API makes it clear that the class is a singleton: the public static field is final, so it will always contain the same object reference. The second advantage is that it’s simpler. 
+```
+// singleton with public final field
+public class Elvis {
+    public static final Elvis INSTANCE = new Elvis();
+    private Elvis() {}
 
-The main advantage of the public field approach is that the API makes it clear that the class is a singleton: the public static field is final, so it will always contain the same object reference. The second advantage is that it’s simpler.
-
-One advantage of the static factory approach is that it gives you the flexibility to change your mind about whether the class is a singleton without changing its API. The factory method returns the sole instance, but it could be modified to return, say, a separate instance for each thread that invokes it. A second advantage is that you can write a generic singleton factory if your application requires it (Item 30). A final advantage of using a static factory is that a method reference can be used as a supplier, for example Elvis::instance is a Supplier<Elvis>. Unless one of these advantages is relevant, the public field approach is preferable.
-
-Personal notes:
-(This one's example is not good as Initialization Demand Holder (IoDH) in concurrency java) as below:
-```$xslt
-//Initialization on Demand Holder 
-public class Singleton {
-    private Singleton() {}
-    
-    private static class HolderClass() {
-        private final static Singleton instance = new Single();
-    }
-    
-    public static Singleton getInstance() {
-        return HolderClass.instance;
-    }
-    
-    public static void main(String args[]) {
-        Singleton s1, s2;
-        s1 = Singleton.getInstance();
-        s2 = Singleton.getInstance();
-        System.out.println( s1 == s2 );
-    }
+    public void leaveTheBuilding() []
 }
 ```
-编译并运行上述代码，运行结果为：true，即创建的单例对象s1和s2为同一对象。
-由于静态单例对象没有作为Singleton的成员变量直接实例化，因此类加载时不会实例化Singleton，第一次调用getInstance()时将加载内部类HolderClass，在该内部类中定义了一个static类型的变量instance，此时会首先初始化这个成员变量，由Java虚拟机来保证其线程安全性，确保该成员变量只能初始化一次。
-由于getInstance()方法没有任何线程锁定，因此其性能不会造成任何影响。
+2. The second methods uses a private field accessible by the client via a static factory method.
+    1. One advantage of the static factory approach is that it gives you the flexibility to change your mind about whether the class is a singleton without changing its API. The factory method returns the sole instance, but it could be modified to return, say, a separate instance for each thread that invokes it. 
+    2. A second advantage is that you can write a generic singleton factory if your application requires it (Item 30). 
+    3. A final advantage of using a static factory is that a method reference can be used as a supplier, for example Elvis::instance is a Supplier<Elvis>.
+```
+// singleton with static factory
+public class Elvis {
+    private static final Elvis INSTANCE = new Elvis();
+    private Elvis() {}
+    public static Elvis getInstance() {
+        return INSTANCE;
+    }
 
-通过使用IoDH，我们既可以实现延迟加载，又可以保证线程安全，不影响系统性能，不失为一种最好的Java语言单例模式实现方式（其缺点是与编程语言本身的特性相关，很多面向对象语言不支持IoDH）。
+    public void leaveTheBuilding() {}
+}
+```    
+3. The third approach uses a single-element enum.  It is similar to the public field approach, but has advantages.
+    1. it is more concise and easier to read.
+    2. It provides the serialization machinery for free versus the other methdos.
+    3. It provides an ironclad guarantee against multiple instantiation.
+```
+// singleton with public final field
+public enum Elvis {
+    INSTANCE;
+    private Elvis() {}
 
-练习
-
-分别使用饿汉式单例、带双重检查锁定机制的懒汉式单例以及IoDH技术实现负载均衡器LoadBalancer。
-至此，三种单例类的实现方式我们均已学习完毕，它们分别是饿汉式单例、懒汉式单例以及IoDH。
+    public void leaveTheBuilding() {}
+}
+```    
 
 ## ITEM 4: ENFORCE NONINSTANTIABILITY WITH A PRIVATE CONSTRUCTOR
 
