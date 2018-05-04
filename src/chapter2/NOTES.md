@@ -626,13 +626,12 @@ In summary, don’t use cleaners, or in releases prior to Java 9, finalizers, ex
 
 ## ITEM 9: PREFER TRY-WITH-RESOURCES TO TRY-FINALLY
 
-The Java libraries include many resources that must be closed manually by invoking a close method. Examples include InputStream, OutputStream, and java.sql.Connection. Closing resources is often overlooked by clients, with predictably dire performance consequences. While many of these resources use finalizers as a safety net, finalizers don’t work very well (Item 8).
-
+The Java libraries include many resources that must be closed manually by invoking a close method. Examples include InputStream, OutputStream, and java.sql.Connection. Closing resources is often overlooked by clients, with predictably dire performance consequences. 
+While many of these resources use finalizers as a safety net, finalizers don’t work very well (Item 8).
 Historically, a try-finally statement was the best way to guarantee that a resource would be closed properly, even in the face of an exception or return:
 
 ```java
 // try-finally - No longer the best way to close resources!
-
 static String firstLineOfFile(String path) throws IOException {
 
     BufferedReader br = new BufferedReader(new FileReader(path));
@@ -652,7 +651,6 @@ static String firstLineOfFile(String path) throws IOException {
 This may not look bad, but it gets worse when you add a second resource:
 ```java
 // try-finally is ugly when used with more than one resource!
-
 static void copy(String src, String dst) throws IOException {
     InputStream in = new FileInputStream(src);
     try {
@@ -671,13 +669,14 @@ static void copy(String src, String dst) throws IOException {
 }
 ```
 
-It may be hard to believe, but even good programmers got this wrong most of the time. For starters, I got it wrong on page 88 of Java Puzzlers [Bloch05], and no one noticed for years. In fact, two-thirds of the uses of the close method in the Java libraries were wrong in 2007.
+Even the correct code for closing resources with try-finally statements, as illustrated in the previous two code examples, has a subtle deficiency. The code in both the try block and the finally block is capable of throwing exceptions. 
+For example, in the firstLineOfFile method, the call to readLine could throw an exception due to a failure in the underlying physical device, and the call to close could then fail for the same reason. Under these circumstances, the second exception completely obliterates the first one. There is no record of the first exception in the exception stack trace, which can greatly complicate debugging in real systems—usually it’s the first exception that you want to see in order to diagnose the problem. 
+While it is possible to write code to suppress the second exception in favor of the first, virtually no one did because it’s just too verbose.
 
-Even the correct code for closing resources with try-finally statements, as illustrated in the previous two code examples, has a subtle deficiency. The code in both the try block and the finally block is capable of throwing exceptions. For example, in the firstLineOfFile method, the call to readLine could throw an exception due to a failure in the underlying physical device, and the call to close could then fail for the same reason. Under these circumstances, the second exception completely obliterates the first one. There is no record of the first exception in the exception stack trace, which can greatly complicate debugging in real systems—usually it’s the first exception that you want to see in order to diagnose the problem. While it is possible to write code to suppress the second exception in favor of the first, virtually no one did because it’s just too verbose.
+All of these problems were solved in one fell swoop when Java 7 introduced the try-with-resources statement [JLS, 14.20.3]. 
+To be usable with this construct, a resource must implement the AutoCloseable interface, which consists of a single void-returning close method. 
+If you write a class that represents a resource that must be closed, your class should implement AutoCloseable too.
 
-All of these problems were solved in one fell swoop when Java 7 introduced the try-with-resources statement [JLS, 14.20.3]. To be usable with this construct, a resource must implement the AutoCloseable interface, which consists of a single void-returning close method. Many classes and interfaces in the Java libraries and in third-party libraries now implement or extend AutoCloseable. If you write a class that represents a resource that must be closed, your class should implement AutoCloseable too.
-
-Here’s how our first example looks using try-with-resources:
 ```java
 // try-with-resources - the the best way to close resources!
 
