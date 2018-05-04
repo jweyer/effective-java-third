@@ -45,7 +45,7 @@ The 'Java Beans' pattern improves, but suffers from shortcomings such as ...
     3. Requires added developer effort to ensure thread safety.
 
 // Builder Pattern
-```
+```java
 public final class NutritionFact {
 	private final int servingSize;
 	private final int servings;
@@ -103,7 +103,7 @@ The Builder pattern is well suited to class hierarchies.
 Use a parallel hierarchy of builders, each nested in the corresponding class. 
 Abstract classes have abstract builders; concrete classes have concrete builders. 
 For example, consider an abstract class at the root of a hierarchy representing various kinds of pizza:
-```$java
+```java
 // Builder pattern for class hierarchies
 public abstract class Pizza {
 
@@ -137,7 +137,7 @@ This, along with the abstract self method, allows method chaining to work proper
 This workaround for the fact that Java lacks a self type is known as the 'simulated self-type' idiom.
 
 Here are two concrete subclasses of Pizza, one of which represents a standard New-York-style pizza, the other a calzone. The former has a required size parameter, while the latter lets you specify whether sauce should be inside or out:
-```$java
+```java
 public class NyPizza extends Pizza {
     public enum Size { SMALL, MEDIUM, LARGE }
     private final Size size;
@@ -211,6 +211,7 @@ The Builder pattern has disadvantages as well ...
 In summary, the Builder pattern is a good choice when designing classes whose constructors or static factories would have more than a handful of parameters, especially if many of the parameters are optional or of identical type. Client code is much easier to read and write with builders than with telescoping constructors, and builders are much safer than JavaBeans.
 
 ## ITEM 3: ENFORCE THE SINGLETON PROPERTY WITH A PRIVATE CONSTRUCTOR OR AN ENUM TYPE
+
 A singleton is simply a class that can be referenced many times but instantiated only once.
 There are three commmon ways to implement singletons, both using private constructors.
 Note: Consult the [Initialization on Demand Idiom](https://en.wikipedia.org/wiki/Initialization-on-demand_holder_idiom) for a cleaner implementation.
@@ -257,18 +258,14 @@ public enum Elvis {
 
 ## ITEM 4: ENFORCE NONINSTANTIABILITY WITH A PRIVATE CONSTRUCTOR
 
-Such utility classes were not designed to be instantiated: an instance would be nonsensical. 
-In the absence of explicit constructors, however, the compiler provides a public, parameterless default constructor. 
-To a user, this constructor is indistinguishable from any other. 
-It is not uncommon to see unintentionally instantiable classes in published APIs.
+Ocassionanlly, you'll write to write a class that is just a grouping of static methods and static fields. Such utility classes were not designed to be instantiated: an instance would be nonsensical. 
+In the absence of explicit constructors, however, the compiler provides a public, parameterless default constructor. To a user, this constructor is indistinguishable from any other. 
+Because of this, it is not uncommon to see unintentionally instantiable classes in published APIs.
 
-Attempting to enforce noninstantiability by making a class abstract does not work. 
-The class can be subclassed and the subclass instantiated. 
-Furthermore, it misleads the user into thinking the class was designed for inheritance (Item 19). 
-There is, however, a simple idiom to ensure noninstantiability. 
-A default constructor is generated only if a class contains no explicit constructors, so a class can be made noninstantiable by including a private constructor:
+Attempting to enforce noninstantiability by making a class abstract does not work. The class can be subclassed and the subclass instantiated. Furthermore, it misleads the user into thinking the class was designed for inheritance. 
+There is, however, a simple idiom to ensure noninstantiability. A default constructor is generated only if a class contains no explicit constructors, so a class can be made noninstantiable by including a private constructor:
 
-```$xslt
+```java
 // Noninstantiable utility class
 public class UtilityClass {
     // Suppress default constructor for noninstantiability
@@ -278,13 +275,14 @@ public class UtilityClass {
     ... // Remainder omitted
 }
 ```
+The AssertionError isn't strictly required, but it provides insurance in case the constructor is accidently invoked from within the class.  It guarantees the class will not be instantiated under any circumstances.
 As a side effect, this idiom also prevents the class from being subclassed. All constructors must invoke a superclass constructor, explicitly or implicitly, and a subclass would have no accessible superclass constructor to invoke.
 
 ## ITEM 5: PREFER DEPENDENCY INJECTION TO HARDWIRING RESOURCES
 Static utility classes and singletons are inappropriate for classes whose behavior is parameterized by an underlying resource.
 What is required is the ability to support multiple instances of the class (in our example, SpellChecker), each of which uses the resource desired by the client (in our example, the dictionary). 
 A simple pattern that satisfies this requirement is to pass the resource into the constructor when creating a new instance. This is one form of dependency injection: the dictionary is a dependency of the spell checker and is injected into the spell checker when it is created. 
-```aidl
+```java
 // Dependency injection provides flexibility and testability
 
 public class SpellChecker {
@@ -314,7 +312,7 @@ Such factories embody the Factory Method pattern [Gamma95].
 The Supplier<T> interface, introduced in Java 8, is perfect for representing factories. 
 Methods that take a Supplier<T> on input should typically constrain the factory’s type parameter using a bounded wildcard type (Item 31) to allow the client to pass in a factory that creates any subtype of a specified type.
 For example, here is a method that makes a mosaic using a client-provided factory to produce each tile:
-```aidl
+```java
 Mosaic create(Supplier<? extends Tile> tileFactory) { ... }
 ```
 Although dependency injection greatly improves flexibility and testability, it can clutter up large projects, which typically contain thousands of dependencies. 
@@ -340,7 +338,7 @@ If you’re going to need such an “expensive object” repeatedly, it may be a
 Unfortunately, it’s not always obvious when you’re creating such an object. 
 Suppose you want to write a method to determine whether a string is a valid Roman numeral. 
 Here’s the easiest way to do this using a regular expression:
-```aidl
+```java
 // Performance can be greatly improved!
 
 static boolean isRomanNumeral(String s) {
@@ -360,7 +358,7 @@ Creating a Pattern instance is expensive because it requires compiling the regul
 
 To improve the performance, explicitly compile the regular expression into a Pattern instance (which is immutable) as part of class initialization, 
 cache it, and reuse the same instance for every invocation of the isRomanNumeral method:
-```aidl
+```java
 // Reusing expensive object for improved performance
 
 public class RomanNumerals {
@@ -391,7 +389,7 @@ Naively, it would seem that every call to keySet would have to create a new Set 
 
 Another way to create unnecessary objects is autoboxing, which allows the programmer to mix primitive and boxed primitive types, boxing and unboxing automatically as needed. Autoboxing blurs but does not erase the distinction between primitive and boxed primitive types. There are subtle semantic distinctions and not-so-subtle performance differences (Item 61). Consider the following method, which calculates the sum of all the positive int values. To do this, the program has to use long arithmetic because an int is not big enough to hold the sum of all the positive int values:
 
-```aidl
+```java
 // Hideously slow! Can you spot the object creation?
 
 private static long sum() {
@@ -406,7 +404,7 @@ private static long sum() {
 }
 ```
 This program gets the right answer, but it is much slower than it should be, due to a one-character typographical error. 
-The variable sum is declared as a Long instead of a long, which means that the program constructs about 231 unnecessary Long instances (roughly one for each time the long i is added to the Long sum). 
+The variable sum is declared as a Long instead of a long, which means that the program constructs about 231 unnecessary Long instances. 
 Changing the declaration of sum from Long to long reduces the runtime from 6.3 seconds to 0.59 seconds on my machine. 
 The lesson is clear: prefer primitives to boxed primitives, and watch out for unintentional autoboxing.
 
@@ -420,18 +418,16 @@ The cost of establishing the connection is sufficiently high that it makes sense
 Generally speaking, however, maintaining your own object pools clutters your code, increases memory footprint, and harms performance.
 Modern JVM implementations have highly optimized garbage collectors that easily outperform such object pools on lightweight objects.
 
-The counterpoint to this item is Item 50 on defensive copying. The present item says, 
-“Don’t create a new object when you should reuse an existing one,” while Item 50 says, 
-“Don’t reuse an existing object when you should create a new one.” 
-Note that the penalty for reusing an object when defensive copying is called for is far greater than the penalty for 
-needlessly creating a duplicate object. Failing to make defensive copies where required can lead to insidious bugs and 
-security holes; creating objects unnecessarily merely affects style and performance.
+The counterpoint to this item is Item 50 on defensive copying. 
+The present item says, “Don’t create a new object when you should reuse an existing one,” 
+While Item 50 says, “Don’t reuse an existing object when you should create a new one.” 
+Note that the penalty for reusing an object when defensive copying is called for is far greater than the penalty for needlessly creating a duplicate object. Failing to make defensive copies where required can lead to insidious bugs and security holes; creating objects unnecessarily merely affects style and performance.
 
 ## ITEM 7: ELIMINATE OBSOLETE OBJECT REFERENCES
 If you switched from a language with manual memory management, such as C or C++, to a garbage-collected language such as Java, your job as a programmer was made much easier by the fact that your objects are automatically reclaimed when you’re through with them. It seems almost like magic when you first experience it. It can easily lead to the impression that you don’t have to think about memory management, but this isn’t quite true.
 
 Consider the following simple stack implementation:
-```aidl
+```java
 // Can you spot the "memory leak"?
 
 public class Stack {
@@ -477,7 +473,7 @@ Memory leaks in garbage-collected languages (more properly known as unintentiona
 
 The fix for this sort of problem is simple: null out references once they become obsolete. In the case of our Stack class, the reference to an item becomes obsolete as soon as it’s popped off the stack. The corrected version of the pop method looks like this:
 
-```aidl
+```java
 public Object pop() {
     if (size == 0)
         throw new EmptyStackException();
@@ -490,31 +486,42 @@ public Object pop() {
 
 An added benefit of nulling out obsolete references is that if they are subsequently dereferenced by mistake, the program will immediately fail with a NullPointerException, rather than quietly doing the wrong thing. It is always beneficial to detect programming errors as quickly as possible.
 
-When programmers are first stung by this problem, they may overcompensate by nulling out every object reference as soon as the program is finished using it. This is neither necessary nor desirable; it clutters up the program unnecessarily. Nulling out object references should be the exception rather than the norm. The best way to eliminate an obsolete reference is to let the variable that contained the reference fall out of scope. This occurs naturally if you define each variable in the narrowest possible scope (Item 57).
+When programmers are first stung by this problem, they may overcompensate by nulling out every object reference as soon as the program is finished using it. This is neither necessary nor desirable; it clutters up the program unnecessarily. 
+Nulling out object references should be the exception rather than the norm. 
+The best way to eliminate an obsolete reference is to let the variable that contained the reference fall out of scope. This occurs naturally if you define each variable in the narrowest possible scope (Item 57).
 
 So when should you null out a reference? What aspect of the Stack class makes it susceptible to memory leaks? Simply put, it manages its own memory. The storage pool consists of the elements of the elements array (the object reference cells, not the objects themselves). The elements in the active portion of the array (as defined earlier) are allocated, and those in the remainder of the array are free. The garbage collector has no way of knowing this; to the garbage collector, all of the object references in the elements array are equally valid. Only the programmer knows that the inactive portion of the array is unimportant. The programmer effectively communicates this fact to the garbage collector by manually nulling out array elements as soon as they become part of the inactive portion.
 
 Generally speaking, whenever a class manages its own memory, the programmer should be alert for memory leaks. Whenever an element is freed, any object references contained in the element should be nulled out.
 
-### Another common source of memory leaks is caches. Once you put an object reference into a cache, it’s easy to forget that it’s there and leave it in the cache long after it becomes irrelevant. There are several solutions to this problem. If you’re lucky enough to implement a cache for which an entry is relevant exactly so long as there are references to its key outside of the cache, represent the cache as a WeakHashMap; entries will be removed automatically after they become obsolete. Remember that WeakHashMap is useful only if the desired lifetime of cache entries is determined by external references to the key, not the value.
+### Another common source of memory leaks is caches. 
+Once you put an object reference into a cache, it’s easy to forget that it’s there and leave it in the cache long after it becomes irrelevant. 
+To implement a cache for which an entry is relevant exactly so long as there are references to its key outside of the cache, represent the cache as a WeakHashMap; entries will be removed automatically after they become obsolete. Remember that WeakHashMap is useful only if the desired lifetime of cache entries is determined by external references to the key, not the value.
 
 More commonly, the useful lifetime of a cache entry is less well defined, with entries becoming less valuable over time. Under these circumstances, the cache should occasionally be cleansed of entries that have fallen into disuse. This can be done by a background thread (perhaps a ScheduledThreadPoolExecutor) or as a side effect of adding new entries to the cache. The LinkedHashMap class facilitates the latter approach with its removeEldestEntry method. For more sophisticated caches, you may need to use java.lang.ref directly.
 
-A third common source of memory leaks is listeners and other callbacks. If you implement an API where clients register callbacks but don’t deregister them explicitly, they will accumulate unless you take some action. One way to ensure that callbacks are garbage collected promptly is to store only weak references to them, for instance, by storing them only as keys in a WeakHashMap.
+### A third common source of memory leaks is listeners and other callbacks. 
+If you implement an API where clients register callbacks but don’t deregister them explicitly, they will accumulate unless you take some action. One way to ensure that callbacks are garbage collected promptly is to store only weak references to them, for instance, by storing them only as keys in a WeakHashMap.
 
 In summary, because memory leaks typically do not manifest themselves as obvious failures, they may remain present in a system for years. They are typically discovered only as a result of careful code inspection or with the aid of a debugging tool known as a heap profiler. Therefore, it is very desirable to learn to anticipate problems like this before they occur and prevent them from happening.
 
 ## ITEM 8: AVOID FINALIZERS AND CLEANERS
 
-Finalizers are unpredictable, often dangerous, and generally unnecessary. Their use can cause erratic behavior, poor performance, and portability problems. Finalizers have a few valid uses, which we’ll cover later in this item, but as a rule, you should avoid them. As of Java 9, finalizers have been deprecated, but they are still being used by the Java libraries. The Java 9 replacement for finalizers is cleaners. Cleaners are less dangerous than finalizers, but still unpredictable, slow, and generally unnecessary.
+Finalizers are unpredictable, often dangerous, and generally unnecessary. Their use can cause erratic behavior, poor performance, and portability problems. 
+Finalizers have a few valid uses, but as a rule, avoid them.
+In Java 9, finalizers have been deprecated, but they are still being used by the Java libraries. 
+The Java 9 replacement for finalizers is cleaners. Cleaners are less dangerous than finalizers, but still unpredictable, slow, and generally unnecessary.
 
-C++ programmers are cautioned not to think of finalizers or cleaners as Java’s analogue of C++ destructors. In C++, destructors are the normal way to reclaim the resources associated with an object, a necessary counterpart to constructors. In Java, the garbage collector reclaims the storage associated with an object when it becomes unreachable, requiring no special effort on the part of the programmer. C++ destructors are also used to reclaim other nonmemory resources. In Java, a try-with-resources or try-finally block is used for this purpose (Item 9).
+In Java, the garbage collector reclaims the storage associated with an object when it becomes unreachable, requiring no special effort on the part of the programmer. A try-with-resources or try-finally block is used for this purpose (Item 9).
 
-One shortcoming of finalizers and cleaners is that there is no guarantee they’ll be executed promptly [JLS, 12.6]. It can take arbitrarily long between the time that an object becomes unreachable and the time its finalizer or cleaner runs. This means that you should never do anything time-critical in a finalizer or cleaner. For example, it is a grave error to depend on a finalizer or cleaner to close files because open file descriptors are a limited resource. If many files are left open as a result of the system’s tardiness in running finalizers or cleaners, a program may fail because it can no longer open files.
+One shortcoming of finalizers and cleaners is that there is no guarantee they’ll be executed promptly [JLS, 12.6]. It can take arbitrarily long between the time that an object becomes unreachable and the time its finalizer or cleaner runs. This means that you should never do anything time-critical in a finalizer or cleaner.
+For example, it is a grave error to depend on a finalizer or cleaner to close files because open file descriptors are a limited resource. If many files are left open as a result of the system’s tardiness in running finalizers or cleaners, a program may fail because it can no longer open files.
 
 The promptness with which finalizers and cleaners are executed is primarily a function of the garbage collection algorithm, which varies widely across implementations. The behavior of a program that depends on the promptness of finalizer or cleaner execution may likewise vary. It is entirely possible that such a program will run perfectly on the JVM on which you test it and then fail miserably on the one favored by your most important customer.
 
-Tardy finalization is not just a theoretical problem. Providing a finalizer for a class can arbitrarily delay reclamation of its instances. A colleague debugged a long-running GUI application that was mysteriously dying with an OutOfMemoryError. Analysis revealed that at the time of its death, the application had thousands of graphics objects on its finalizer queue just waiting to be finalized and reclaimed. Unfortunately, the finalizer thread was running at a lower priority than another application thread, so objects weren’t getting finalized at the rate they became eligible for finalization. The language specification makes no guarantees as to which thread will execute finalizers, so there is no portable way to prevent this sort of problem other than to refrain from using finalizers. Cleaners are a bit better than finalizers in this regard because class authors have control over their own cleaner threads, but cleaners still run in the background, under the control of the garbage collector, so there can be no guarantee of prompt cleaning.
+Tardy finalization is not just a theoretical problem. Providing a finalizer for a class can arbitrarily delay reclamation of its instances. 
+The language specification makes no guarantees as to which thread will execute finalizers, so there is no portable way to prevent this sort of problem other than to refrain from using finalizers. 
+Cleaners are a bit better than finalizers in this regard because class authors have control over their own cleaner threads, but cleaners still run in the background, under the control of the garbage collector, so there can be no guarantee of prompt cleaning.
 
 Not only does the specification provide no guarantee that finalizers or cleaners will run promptly; it provides no guarantee that they’ll run at all. It is entirely possible, even likely, that a program terminates without running them on some objects that are no longer reachable. As a consequence, you should never depend on a finalizer or cleaner to update persistent state. For example, depending on a finalizer or cleaner to release a persistent lock on a shared resource such as a database is a good way to bring your entire distributed system to a grinding halt.
 
@@ -534,7 +541,7 @@ A second legitimate use of cleaners concerns objects with native peers. A native
 
 Cleaners are a bit tricky to use. Below is a simple Room class demonstrating the facility. Let’s assume that rooms must be cleaned before they are reclaimed. The Room class implements AutoCloseable; the fact that its automatic cleaning safety net uses a cleaner is merely an implementation detail. Unlike finalizers, cleaners do not pollute a class’s public API:
 
-```aidl
+```java
 // An autocloseable class using a cleaner as a safety net
 
 public class Room implements AutoCloseable {
@@ -593,7 +600,7 @@ It is critical that a State instance does not refer to its Room instance. If it 
 
 As we said earlier, Room’s cleaner is used only as a safety net. If clients surround all Room instantiations in try-with-resource blocks, automatic cleaning will never be required. This well-behaved client demonstrates that behavior:
 
-```aidl
+```java
 public class Adult {
     public static void main(String[] args) {
         try (Room myRoom = new Room(7)) {
@@ -604,7 +611,7 @@ public class Adult {
 ```
 As you’d expect, running the Adult program prints Goodbye, followed by Cleaning room. But what about this ill-behaved program, which never cleans its room?
 
-```aidl
+```java
 public class Teenager {
 
     public static void main(String[] args) {
@@ -623,7 +630,7 @@ The Java libraries include many resources that must be closed manually by invoki
 
 Historically, a try-finally statement was the best way to guarantee that a resource would be closed properly, even in the face of an exception or return:
 
-```aidl
+```java
 // try-finally - No longer the best way to close resources!
 
 static String firstLineOfFile(String path) throws IOException {
@@ -643,7 +650,7 @@ static String firstLineOfFile(String path) throws IOException {
 }
 ```
 This may not look bad, but it gets worse when you add a second resource:
-```aidl
+```java
 // try-finally is ugly when used with more than one resource!
 
 static void copy(String src, String dst) throws IOException {
@@ -671,7 +678,7 @@ Even the correct code for closing resources with try-finally statements, as illu
 All of these problems were solved in one fell swoop when Java 7 introduced the try-with-resources statement [JLS, 14.20.3]. To be usable with this construct, a resource must implement the AutoCloseable interface, which consists of a single void-returning close method. Many classes and interfaces in the Java libraries and in third-party libraries now implement or extend AutoCloseable. If you write a class that represents a resource that must be closed, your class should implement AutoCloseable too.
 
 Here’s how our first example looks using try-with-resources:
-```aidl
+```java
 // try-with-resources - the the best way to close resources!
 
 static String firstLineOfFile(String path) throws IOException {
@@ -687,7 +694,7 @@ static String firstLineOfFile(String path) throws IOException {
 }
 ```
 And here’s how our second example looks using try-with-resources:
-```aidl
+```java
 // try-with-resources on multiple resources - short and sweet
 
 static void copy(String src, String dst) throws IOException {
@@ -715,7 +722,7 @@ This allows you to handle exceptions without sullying your code with another lay
 As a slightly contrived example, here’s a version our firstLineOfFile method that does not throw exceptions, 
 but takes a default value to return if it can’t open the file or read from it:
 
-```aidl
+```java
 // try-with-resources with a catch clause
 
 static String firstLineOfFile(String path, String defaultVal) {
